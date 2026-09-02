@@ -1,0 +1,7 @@
+<?php $page = 'webSetBeauty'; $pageTitle = '美颜设置'; require __DIR__ . '/header.php'; ?>
+<div class="block block-rounded" id="beauty-block">
+    <div class="block-header block-header-default"><h3 class="block-title">美颜参数</h3></div>
+    <div class="block-content block-content-full"><form id="beauty-form" class="row g-4"><div class="col-12"><label class="form-label d-flex justify-content-between" for="brightness"><span>亮度</span><strong id="brightness-value">0</strong></label><input type="range" class="form-range" min="0" max="25" id="brightness"></div><div class="col-12"><label class="form-label d-flex justify-content-between" for="contrast"><span>对比度</span><strong id="contrast-value">0</strong></label><input type="range" class="form-range" min="0" max="50" id="contrast"></div><div class="col-12"><label class="form-label d-flex justify-content-between" for="sharpen"><span>锐化</span><strong id="sharpen-value">0</strong></label><input type="range" class="form-range" min="0" max="50" id="sharpen"></div><div class="col-12"><label class="form-label d-flex justify-content-between" for="saturation"><span>饱和度</span><strong id="saturation-value">0</strong></label><input type="range" class="form-range" min="0" max="5" id="saturation"></div></form></div>
+    <div class="block-content block-content-full border-top text-end"><button type="button" class="btn btn-primary" id="beauty-save">保存</button></div>
+</div>
+<?php require __DIR__ . '/footer.php'; ?>
