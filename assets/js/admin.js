@@ -159,7 +159,7 @@
   function updateOverflowTooltips() {
     const pageContent = document.getElementById('page-content');
     if (!pageContent) return;
-    const nestedSelectors = '.order-number-cell code, .record-error-tip, .feedback-content';
+    const nestedSelectors = '.order-number-cell code, .order-refund-msg, .record-error-tip, .feedback-content';
     pageContent.querySelectorAll('.fixed-table-area td, ' + nestedSelectors).forEach(function (element) {
       if (element.matches('td') && element.querySelector(nestedSelectors)) return;
       const text = element.textContent.trim();
@@ -409,10 +409,9 @@
       return (clothesCategoryMap[category] || '未知分类') + ' ' + escapeHtml(photo.clothesId || '-');
     }
     function getPhotoExpireTime(photo) {
-      if (photo.downloadStatus !== 1) return '永久有效';
       const createTime = flatpickr.parseDate(photo.createTime, 'Y-m-d H:i:S');
       createTime.setDate(createTime.getDate() + 7);
-      const expireTime = new Date(createTime.getFullYear(), createTime.getMonth(), createTime.getDate(), 2, 0, 0);
+      const expireTime = new Date(createTime.getFullYear(), createTime.getMonth(), createTime.getDate(), 3, 0, 0);
       if (expireTime <= createTime) expireTime.setDate(expireTime.getDate() + 1);
       return flatpickr.formatDate(expireTime, 'Y-m-d H:i:S');
     }
@@ -438,7 +437,7 @@
         ['ID', photo.id], ['用户ID', photo.userId], ['规格ID', photo.itemId], ['规格来源', source], ['名称', photo.name],
         ['正式图片', photo.nimg], ['下载状态', downloadStatusMap[photo.downloadStatus]], ['尺寸说明', photo.size], ['宽度', photo.width == null ? null : photo.width + ' px'], ['高度', photo.height == null ? null : photo.height + ' px'],
         ['DPI', photo.dpi], ['美颜', beauty], ['背景颜色', photo.backgroundColor], ['背景效果', backgroundRenderMap[photo.backgroundRender]], ['服装分类', clothesCategory], ['服装编号', photo.clothesId],
-        ['图片过期时间', getPhotoExpireTime(photo)], ['创建时间', photo.createTime]
+        ['过期删除时间', getPhotoExpireTime(photo)], ['创建时间', photo.createTime]
       ];
       $('#photo-detail-body').html('<div class="table-responsive"><table class="table table-bordered table-vcenter mb-0"><tbody>' + rows.map(function (row) { return '<tr><th style="width:170px">' + row[0] + '</th><td class="photo-detail-value">' + escapeHtml(row[1] == null || row[1] === '' ? '-' : row[1]) + '</td></tr>'; }).join('') + '</tbody></table></div>');
       details.show();
@@ -449,12 +448,15 @@
 
   function initPayOrder() {
     const state = {page: 1, size: 10, records: []};
+    const refundRequests = new Set();
     const datePicker = createDateRangePicker('#order-create-time');
     loadAppSetOptions('#order-app-id');
     const statusMap = {
       1: {text: '待支付', className: 'status-order-pending'},
-      2: {text: '已支付', className: 'status-order-paid'},
-      3: {text: '已退款', className: 'status-order-refunded'}
+      2: {text: '支付成功', className: 'status-order-paid'},
+      3: {text: '退款中', className: 'status-order-refunding'},
+      4: {text: '退款失败', className: 'status-order-refund-failed'},
+      5: {text: '退款成功', className: 'status-order-refunded'}
     };
 
     function loadCount() {
@@ -472,7 +474,7 @@
     function load() {
       setBlockLoading('#order-block', true);
       const dateRange = getDateRange(datePicker);
-      api('admin/getPayOrderPage', {pageNum: state.page, pageSize: state.size, userId: Number($('#order-user-id').val() || 0), orderNo: $.trim($('#order-no').val()), orderWx: $.trim($('#order-wx').val()), appId: Number($('#order-app-id').val()), status: Number($('#order-status').val()), startTime: dateRange.startTime, endTime: dateRange.endTime}).done(function (res) {
+      api('admin/getPayOrderPage', {pageNum: state.page, pageSize: state.size, userId: Number($('#order-user-id').val() || 0), orderNo: $.trim($('#order-no').val()), orderWx: $.trim($('#order-wx').val()), appId: Number($('#order-app-id').val()), status: Number($('#order-status').val()), type: Number($('#order-type').val()), startTime: dateRange.startTime, endTime: dateRange.endTime}).done(function (res) {
         const data = res.data;
         state.records = data.records;
         const rows = state.records.map(function (item) {
@@ -482,25 +484,36 @@
           const refundNo = item.refundNo ? '<code>退款：' + escapeHtml(item.refundNo) + '</code>' : '';
           const refundWx = item.refundWx ? '<code>微信退款：' + escapeHtml(item.refundWx) + '</code>' : '';
           const refundTime = '<div class="fs-xs text-muted">退款：' + escapeHtml(item.refundTime || '-') + '</div>';
-          const refundButton = orderStatus === 2 ? '<button class="btn btn-sm btn-alt-danger order-refund" data-id="' + item.id + '">退款</button>' : '';
-          const deleteButton = '<button class="btn btn-sm btn-alt-secondary order-delete" data-id="' + item.id + '">删除</button>';
-          return '<tr><td class="ps-4">' + escapeHtml(item.id) + '</td><td><div class="order-number-cell"><code>商户：' + escapeHtml(item.orderNo || '-') + '</code>' + orderWx + refundNo + refundWx + '</div></td><td>' + userIdButton(item.userId) + '</td><td>' + escapeHtml(item.appId) + '</td><td>' + escapeHtml(item.photoId) + '</td><td>' + escapeHtml(item.name || '-') + '</td><td>¥' + item.money.toFixed(2) + '</td><td><span class="status-badge ' + statusInfo.className + '">' + statusInfo.text + '</span></td><td><div class="order-time-cell"><div class="fs-xs text-muted">创建：' + escapeHtml(item.createTime || '-') + '</div><div class="fs-xs text-muted">支付：' + escapeHtml(item.payTime || '-') + '</div>' + refundTime + '</div></td><td class="pe-4 order-actions-cell"><div class="table-actions">' + refundButton + deleteButton + '</div></td></tr>';
+          const refundMsg = item.refundMsg ? '<div class="order-refund-msg fs-xs text-danger mt-1">' + escapeHtml(item.refundMsg) + '</div>' : '';
+          const disabled = refundRequests.has(item.id) ? ' disabled' : '';
+          const refundButton = orderStatus === 2 || orderStatus === 4 ? '<button class="btn btn-sm btn-alt-danger order-refund" data-id="' + item.id + '"' + disabled + '>退款</button>' : '';
+          const deleteButton = orderStatus !== 3 ? '<button class="btn btn-sm btn-alt-secondary order-delete" data-id="' + item.id + '"' + disabled + '>删除</button>' : '';
+          return '<tr><td class="ps-4">' + escapeHtml(item.id) + '</td><td><div class="order-number-cell"><code>商户：' + escapeHtml(item.orderNo || '-') + '</code>' + orderWx + refundNo + refundWx + '</div></td><td>' + userIdButton(item.userId) + '</td><td>' + escapeHtml(item.appId) + '</td><td>' + escapeHtml(item.photoId) + '</td><td>' + escapeHtml(item.name || '-') + '</td><td>¥' + item.money.toFixed(2) + '</td><td>' + (item.type === 1 ? '微信支付' : '虚拟支付') + '</td><td><span class="status-badge ' + statusInfo.className + '">' + statusInfo.text + '</span>' + refundMsg + '</td><td><div class="order-time-cell"><div class="fs-xs text-muted">创建：' + escapeHtml(item.createTime || '-') + '</div><div class="fs-xs text-muted">支付：' + escapeHtml(item.payTime || '-') + '</div>' + refundTime + '</div></td><td class="pe-4 order-actions-cell"><div class="table-actions">' + refundButton + deleteButton + '</div></td></tr>';
         }).join('');
-        $('#order-list').html(rows || emptyRow(10, '暂无订单'));
+        disposeTooltips(document.getElementById('order-list'));
+        $('#order-list').html(rows || emptyRow(11, '暂无订单'));
         renderPager('#order-pagination', data.current, data.size, data.total, function (next) { state.page = next; load(); });
       }).always(function () { setBlockLoading('#order-block', false); });
     }
 
     $('#order-search').on('click', function () { state.page = 1; load(); });
-    $('#order-reset').on('click', function () { $('#order-user-id,#order-no,#order-wx').val(''); $('#order-app-id,#order-status').val('0'); datePicker.clear(); state.page = 1; load(); });
+    $('#order-reset').on('click', function () { $('#order-user-id,#order-no,#order-wx').val(''); $('#order-app-id,#order-status,#order-type').val('0'); datePicker.clear(); state.page = 1; load(); });
     $('#order-list').on('click', '.order-refund', function () {
       const id = Number($(this).data('id'));
       const order = state.records.find(function (item) { return item.id === id; });
+      if (refundRequests.has(id)) return;
       confirmDialog('将按订单原金额 ¥' + order.money.toFixed(2) + ' 全额退回，并在退款成功后删除关联照片', '确认退款', function () {
-        api('admin/refundPayOrder', {id: id}).done(function (res) {
-          toast(res.data || '退款成功');
+        if (refundRequests.has(id)) return;
+        refundRequests.add(id);
+        $('#order-list .order-refund[data-id="' + id + '"],#order-list .order-delete[data-id="' + id + '"]').prop('disabled', true);
+        api('admin/refundPayOrder', {id: id}).done(function () {
+          toast('退款申请已提交，请稍后刷新网页查看状态');
           loadCount();
           load();
+        }).fail(function () {
+          $('#order-list .order-refund[data-id="' + id + '"],#order-list .order-delete[data-id="' + id + '"]').prop('disabled', false);
+        }).always(function () {
+          refundRequests.delete(id);
         });
       });
     });
@@ -958,8 +971,8 @@
 
     function renderApplicationCard(item) {
       const id = item.id;
-      //探索应用统一使用关闭、免费、广告、付费、广告或付费五种下载模式
-      const options = '<option value="0">关闭</option><option value="1">免费下载</option><option value="2">看广告下载</option><option value="3">付费下载</option><option value="4">看广告或付费下载</option>';
+      //置顶应用和探索应用统一使用关闭功能、免费、广告、付费、广告或付费五种下载模式
+      const options = '<option value="0">关闭功能</option><option value="1">免费下载</option><option value="2">看广告下载</option><option value="3">付费下载</option><option value="4">看广告或付费下载</option>';
       return '<div class="col-4 application-sort-item" data-id="' + id + '"><div class="block block-rounded h-100 mb-0 application-card" data-id="' + id + '">' +
         '<div class="block-header block-header-default"><h3 class="block-title app-card-title">' + escapeHtml(item.name || '未命名应用') + '</h3></div>' +
         '<div class="application-cover"><img class="app-cover-preview" src="' + safeImage($.trim(item.image || '')) + '" alt=""><div class="application-cover-actions">' + (!$.trim(item.image || '') ? '<button type="button" class="application-cover-action app-image-sync">同步图片</button>' : '') + '<label class="application-cover-action"><i class="fa fa-image me-1"></i>更换封面<input type="file" class="app-image-input" accept="image/jpeg,image/png"></label></div></div>' +
@@ -985,10 +998,10 @@
         $('#application-basic-list').html(basic.map(function (item) {
           const id = item.id;
           const options = id === 1
-            ? '<option value="0">关闭上传</option><option value="1">允许上传</option>'
+            ? '<option value="0">关闭</option><option value="1">开启</option>'
             : id === 14
-              ? '<option value="0">关闭鉴黄</option><option value="1">启用鉴黄</option>'
-              : '<option value="0">关闭</option><option value="1">免费使用</option>';
+              ? '<option value="0">关闭</option><option value="1">开启</option>'
+              : '<option value="0">关闭</option><option value="1">开启</option>';
           const setting = id === 14
             ? '<div class="col-6"><div class="d-flex align-items-center mb-2"><label class="form-label mb-0">鉴黄阈值</label><button type="button" class="btn btn-sm btn-link text-muted p-0 ms-1 lh-1" data-bs-toggle="tooltip" data-bs-placement="top" title="建议0.6，越低=严格，越高=不严格。建议只在小程序提交审核时开启鉴黄，审核通过后关闭鉴黄" aria-label="鉴黄阈值说明"><i class="fa fa-circle-question"></i></button></div><input type="number" min="0.01" max="1" step="0.01" class="form-control app-setting-value" placeholder="0.01～1" value="' + (item.settingValue == null ? '' : item.settingValue) + '"></div>'
             : '<input type="hidden" class="app-setting-value" value="0">';
@@ -1227,6 +1240,54 @@
   }
 
   function initWebSet() {
+    const goodsModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('virtual-goods-modal'));
+
+    if (localStorage.getItem('webSetVideoTipDismissed') !== '1') {
+      $('#virtual-video-tip-alert').removeClass('d-none');
+    }
+    $('#virtual-video-tip-close').on('click', function () {
+      localStorage.setItem('webSetVideoTipDismissed', '1');
+      $('#virtual-video-tip-alert').addClass('d-none');
+    });
+
+    function togglePaySettings() {
+      const virtual = Number($('input[name="pay-type"]:checked').val()) === 2;
+      $('#wechat-pay-settings').toggleClass('d-none', virtual);
+      $('#virtual-pay-settings,#virtual-goods-view').toggleClass('d-none', !virtual);
+    }
+
+    $('input[name="pay-type"]').on('change', togglePaySettings);
+    $('#virtual-pay-environment').on('change', function () {
+      $('label[for="virtual-app-key"]').text(Number($(this).val()) === 2 ? '沙箱 AppKey' : '现网 AppKey');
+      $('#virtual-app-key').val('');
+    });
+    $('.virtual-random').on('click', function () {
+      const button = $(this);
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      const values = new Uint32Array(button.data('length'));
+      crypto.getRandomValues(values);
+      $(button.data('target')).val(Array.from(values, function (value) { return characters[value % characters.length]; }).join(''));
+    });
+    $('.virtual-copy').on('click', function () {
+      const value = $($(this).data('target')).val();
+      if (!value) { toast('请先点击随机生成', 'warning'); return; }
+      navigator.clipboard.writeText(value).then(function () {
+        toast('复制成功');
+      }, function () {
+        toast('复制失败，请重试', 'warning');
+      });
+    });
+    $('#virtual-goods-view').on('click', function () {
+      $('#virtual-goods-list').html(emptyRow(6, '加载中…'));
+      goodsModal.show();
+      api('admin/getExploreSet').done(function (res) {
+        const rows = res.data.filter(function (item) { return item.id !== 1 && item.id !== 2 && item.id !== 14 && item.id !== 15; }).sort(function (a, b) { return a.id - b.id; }).map(function (item) {
+          return '<tr><td><code>' + escapeHtml(item.id) + '</code></td><td>' + escapeHtml(item.name) + '</td><td><a href="../assets/media/virtual-goods-cover.png" download="virtual-goods-cover.png"><img class="virtual-goods-thumb" src="../assets/media/virtual-goods-cover.png" alt="道具封面" loading="lazy"></a></td><td>请前往应用设置查看你自已设置的价格</td><td>普通道具</td><td>自定义</td></tr>';
+        }).join('');
+        $('#virtual-goods-list').html(rows || emptyRow(6, '暂无需要配置的应用'));
+      });
+    });
+
     setBlockLoading('#system-block', true);
     setBlockLoading('#storage-block', true);
     setBlockLoading('#official-block', true);
@@ -1247,6 +1308,15 @@
       $('#api-v3-key').val(data.apiV3Key || '');
       $('#merchant-private-key').val(data.merchantPrivateKey || '');
       $('#pay-notify-url').val(data.payNotifyUrl || '');
+      $('input[name="pay-type"][value="' + data.payType + '"]').prop('checked', true);
+      $('#virtual-offer-id').val(data.virtualOfferId || '');
+      $('#virtual-pay-environment').val(data.virtualPayEnvironment);
+      $('label[for="virtual-app-key"]').text(Number(data.virtualPayEnvironment) === 2 ? '沙箱 AppKey' : '现网 AppKey');
+      $('#virtual-app-key').val(data.virtualAppKey || '');
+      $('#virtual-notify-url').val(data.virtualNotifyUrl || 'https://你的JAVA后端域名/pay/virtualNotify');
+      $('#virtual-token').val(data.virtualToken || '');
+      $('#virtual-encoding-aes-key').val(data.virtualEncodingAesKey || '');
+      togglePaySettings();
     }).always(function () {
       setBlockLoading('#system-block', false);
       setBlockLoading('#storage-block', false);
@@ -1287,6 +1357,13 @@
       data.append('apiV3Key', $.trim($('#api-v3-key').val()));
       data.append('merchantPrivateKey', $.trim($('#merchant-private-key').val()));
       data.append('payNotifyUrl', $.trim($('#pay-notify-url').val()));
+      data.append('payType', $('input[name="pay-type"]:checked').val());
+      data.append('virtualOfferId', $.trim($('#virtual-offer-id').val()));
+      data.append('virtualPayEnvironment', $('#virtual-pay-environment').val());
+      data.append('virtualAppKey', $.trim($('#virtual-app-key').val()));
+      data.append('virtualNotifyUrl', $.trim($('#virtual-notify-url').val()));
+      data.append('virtualToken', $.trim($('#virtual-token').val()));
+      data.append('virtualEncodingAesKey', $.trim($('#virtual-encoding-aes-key').val()));
       api('admin/updateWebSet', data).done(function () { toast('保存成功'); });
     });
     $('#official-qr-code-image-file').on('change', function () {
@@ -1316,8 +1393,8 @@
         metrics.push(['图片上传', data.uploadCount, 'cloud-arrow-up', 'warning']);
         metrics.push(['全部订单', data.payOrderCount, 'receipt', 'primary']);
         metrics.push(['待支付订单', data.pendingOrderCount, 'clock', 'warning']);
-        metrics.push(['已支付订单', data.paidOrderCount, 'circle-check', 'success']);
-        metrics.push(['已退款订单', data.refundedOrderCount, 'arrow-rotate-left', 'info']);
+        metrics.push(['支付成功订单', data.paidOrderCount, 'circle-check', 'success']);
+        metrics.push(['退款成功订单', data.refundedOrderCount, 'arrow-rotate-left', 'info']);
         $('#app-count-total').html('<div class="block block-rounded border-start border-primary border-4"><div class="block-content block-content-full d-flex align-items-center justify-content-between py-4"><div><div class="fs-sm fw-semibold text-muted mb-1">总使用量</div><div class="fs-1 fw-bold">' + data.totalCount.toLocaleString('zh-CN') + '</div><div class="fs-sm text-muted mt-1">全部功能累计使用次数（不含订单数据）</div></div><div class="item item-rounded-lg bg-primary-light text-primary"><i class="fa fa-chart-column fs-3"></i></div></div></div>');
         $('#app-count-list').html(metrics.map(function (metric) { return '<div class="col-3"><div class="block block-rounded d-flex flex-column h-100 mb-0"><div class="block-header block-header-default"><h3 class="block-title">' + escapeHtml(metric[0]) + '</h3><span class="badge bg-body text-muted">累计</span></div><div class="block-content block-content-full flex-grow-1 d-flex align-items-center justify-content-between"><div class="fs-2 fw-bold">' + metric[1].toLocaleString('zh-CN') + '</div><div class="item item-rounded-lg bg-' + metric[3] + '-light text-' + metric[3] + '"><i class="fa fa-' + metric[2] + '"></i></div></div></div></div>'; }).join(''));
       }).fail(function (error) {

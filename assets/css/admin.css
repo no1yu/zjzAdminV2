@@ -106,7 +106,8 @@ body {
   text-overflow: clip !important;
 }
 
-.record-error-tip {
+.record-error-tip,
+.order-refund-msg {
   display: block;
   overflow: hidden;
   max-width: 100%;
@@ -155,6 +156,8 @@ body {
 .status-disabled { color: #b23c3c; background: #fdeaea; }
 .status-order-pending { color: #986418; background: #fff3df; }
 .status-order-paid { color: #1f7a4d; background: #e7f6ee; }
+.status-order-refunding { color: #986418; background: #fff3df; }
+.status-order-refund-failed { color: #b23c3c; background: #fdeaea; }
 .status-order-refunded { color: #5b4aa1; background: #eeeafd; }
 
 .user-region-map {
@@ -175,6 +178,34 @@ body {
   color: #415169;
   font-size: 11px;
   text-overflow: ellipsis;
+}
+
+.virtual-goods-table th,
+.virtual-goods-table td {
+  white-space: nowrap;
+}
+
+.virtual-goods-thumb {
+  width: 64px;
+  height: 64px;
+  display: block;
+  margin: 0 auto;
+  object-fit: contain;
+  border-radius: .375rem;
+}
+
+.virtual-goods-notes {
+  line-height: 1.8;
+}
+
+.virtual-goods-notes li + li {
+  margin-top: 8px;
+}
+
+.virtual-payment-guide {
+  display: block;
+  width: 100%;
+  border-radius: .375rem;
 }
 
 .table-actions {

@@ -34,7 +34,7 @@ $config = require __DIR__ . '/config/app.php';
                                 <span class="login-version-title">请选择唤醒登录的小程序版本</span>
                                 <div class="login-version-switch" data-active="release" role="radiogroup" aria-label="小程序版本">
                                     <button type="button" class="login-version-option active" data-type="release" role="radio" aria-checked="true">
-                                        正式版
+                                        线上版
                                     </button>
                                     <button type="button" class="login-version-option" data-type="trial" role="radio" aria-checked="false">
                                         体验版
@@ -48,7 +48,7 @@ $config = require __DIR__ . '/config/app.php';
                                 <img id="qr-image" alt="登录二维码" style="display:none">
                                 <div class="login-qr-retry d-none" id="qr-retry">
                                     <span class="login-qr-retry-icon"><i class="fa fa-arrow-rotate-right"></i></span>
-                                    <span class="login-qr-retry-title">二维码暂不可用</span>
+                                    <span class="login-qr-retry-title">二维码获取失败</span>
                                     <button type="button" class="btn btn-primary" id="refresh-qr">重新获取</button>
                                 </div>
                             </div>

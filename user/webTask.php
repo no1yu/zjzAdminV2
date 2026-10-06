@@ -4,7 +4,7 @@
         <div class="block block-rounded h-100 mb-0" id="timer-first-block">
             <div class="block-content block-content-full d-flex align-items-center justify-content-between">
                 <div>
-                    <div class="fs-sm fw-medium text-muted mb-1" id="timer-first-name">未解锁照片清理</div>
+                    <div class="fs-sm fw-medium text-muted mb-1" id="timer-first-name">过期照片清理</div>
                     <div class="fs-4 fw-semibold" id="timer-first-time">暂无执行记录</div>
                     <div class="fs-xs text-muted mt-1">最后执行时间</div>
                 </div>
@@ -32,7 +32,7 @@
     </div>
     <div class="block-content block-content-full border-bottom">
         <div class="row g-3 align-items-end">
-            <div class="col-3"><label class="form-label">类型</label><select class="form-select" id="web-task-type"><option value="0">全部类型</option><option value="1">未解锁照片清理</option><option value="2">临时编辑数据清理</option></select></div>
+            <div class="col-3"><label class="form-label">类型</label><select class="form-select" id="web-task-type"><option value="0">全部类型</option><option value="1">过期照片清理</option><option value="2">临时编辑数据清理</option></select></div>
             <div class="col-2"><label class="form-label">状态</label><select class="form-select" id="web-task-status"><option value="0">全部状态</option><option value="1">成功</option><option value="2">失败</option></select></div>
             <div class="col-2"><label class="form-label">删除数量</label><select class="form-select" id="web-task-delete-count-type"><option value="0">全部</option><option value="1" selected>有删除</option><option value="2">无删除</option></select></div>
             <div class="col-auto"><button class="btn btn-primary" id="web-task-search">查询</button></div>
