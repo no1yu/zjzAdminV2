@@ -9,7 +9,8 @@
 
 **相关项目**：
 
-- 小程序前端V2请前往：https://github.com/no1yu/photoOneV2
+- 小程序前端V2（模板一）请前往：https://github.com/no1yu/photoOneV2
+- 小程序前端V2（模板二）请前往：https://github.com/no1yu/photoTwoV2
 - 小程序后端V2请前往：https://github.com/no1yu/HivisionIDPhotos-wechat-weappV2
 
 
